@@ -1,9 +1,9 @@
 import React, { Component } from 'react';
-import { Alert, Platform, Button, Text, StyleSheet, View, TextInput } from 'react-native';
+import { Alert, Platform, Picker, Button, Text, StyleSheet, View, TextInput } from 'react-native';
 import axios from 'axios';
 import RadioForm, { RadioButton, RadioButtonInput, RadioButtonLabel } from 'react-native-simple-radio-button';
 
-const url = 'http:///7bc7b43c.ngrok.io';
+const url = 'http://0477be31.ngrok.io';
 
 export default class App extends Component {
 
@@ -13,7 +13,7 @@ export default class App extends Component {
       username: '',
       email: '',
       password: '',
-      loggedIn: true,
+      loggedIn: false,
 
       spent: 0,
       remaining: 0,
@@ -21,11 +21,13 @@ export default class App extends Component {
       moneyIn: 0,
       amount: 0,
       desc: '',
-      dayOfWeek: '',
+      dayOfWeek: 'monday',
     }
     this.Login = this.Login.bind(this);
     this.Main = this.Main.bind(this);
     this.submitLogin = this.submitLogin.bind(this);
+    this._logout = this._logout.bind(this);
+    this._submitTransaction = this._submitTransaction.bind(this);
   }
 
   submitLogin() {
@@ -33,39 +35,42 @@ export default class App extends Component {
       email: this.state.email,
       password: this.state.password
     })
-      .then((response) => function () {
+      .then((response) => {
         this.setState({
           loggedIn: true,
           username: response.data.data.user.username,
-          password: ''
+          password: '',
         })
       })
-      .catch((error) => function () {
-        console.log(error.response);
+      .catch((error) => {
+        this.showAlert('Failed to login')
       });
-    // this.forceUpdate();
   }
 
-  _btnPressed(e, btn) {
+  _logout() {
     axios.post(url + '/api/auth/logout')
-      .then((response) => function () {
+      .then((response) => {
         this.setState({
-          loggedIn: false
+          loggedIn: false,
+          username: ''
         })
       })
-      .catch((error) => function () {
+      .catch((error) => {
         console.log(error.response);
       });
-    // this.forceUpdate();
   }
 
   Login() {
     return (
       <View style={styles.loginContainer}>
-        <Button onPress={(event) => this._btnPressed(event, 'logout')} title="Log Out" />
+        <Text style={{ fontSize: 34, textAlign: 'center', marginBottom: '2%' }}>Log In</Text>
+        {/* <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
+          <Button onPress={this._logout} title="Log Out" />
+        </View> */}
         <TextInput style={{ fontSize: 24 }}
           clearTextOnFocus={true}
           placeholder="email"
+          autoCapitalize="none"
           onChangeText={(email) => this.setState({ email })}
           onSubmitEditing={() => { this.secondTextInput.focus(); }}
           blurOnSubmit={false}
@@ -74,15 +79,35 @@ export default class App extends Component {
           clearTextOnFocus={true}
           secureTextEntry={true}
           placeholder="password"
+          autoCapitalize="none"
           ref={(input) => { this.secondTextInput = input; }}
           onChangeText={(password) => this.setState({ password })}
           onSubmitEditing={this.submitLogin}
         />
+        {/* <Text style={{ textAlign: "center", color: 'red' }}>{this.state.loginMsg}</Text> */}
       </View>
     );
   }
 
   componentDidMount() {
+    axios.get(url + '/api/user')
+      .then((response) => {
+        if (response.data.success) {
+          this.setState({
+            loggedIn: true,
+            username: response.data.data.user.username
+          })
+          this.getPeriodData();
+        } else {
+          this.setState({ loggedIn: false })
+        }
+      })
+      .catch((error) => {
+        console.log(error.response)
+      })
+  }
+
+  getPeriodData() {
     axios.get(url + '/api/finance/current')
       .then((response) => {
         this.setState({
@@ -95,20 +120,43 @@ export default class App extends Component {
       })
   }
 
+  _submitTransaction() {
+    axios.post(url + '/api/finance/log', {
+      amount: this.state.amount,
+      description: this.state.desc,
+      dayOfWeek: this.state.dayOfWeek,
+      date: new Date(),
+      isIncome: this.state.moneyIn
+    })
+      .then((response) => {
+        this.showAlert('Transaction submitted');
+        this.getPeriodData();
+        this.amountInput.clear();
+        this.descInput.clear();
+      })
+      .catch((error) => {
+        this.showAlert('Failed to submit transaction')
+      })
+  }
+
   Main() {
     var radio_props = [
-      { label: 'Money Out   ', value: 0 },
-      { label: 'Money In', value: 1 }
+      { label: 'Money Out   ', value: 'false' },
+      { label: 'Money In', value: 'true' }
     ];
     return (
       <View style={styles.mainContainer}>
-        <Button style={styles.topRight} onPress={(event) => this._btnPressed(event, 'logout')} title="Log Out" />
+        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
+            <Button onPress={this._logout} title="Log Out" />
+        </View>
         <Text style={styles.header}>Welcome, {this.state.username}!</Text>
         <View style={styles.moneyValues}>
           <View style={styles.moneyContainer}>
+            <Text >Spent</Text>
             <Text style={{ fontSize: 30, color: 'red' }}>${this.state.spent}</Text>
           </View>
           <View style={styles.moneyContainer}>
+            <Text>Remaining</Text>
             <Text style={{ fontSize: 30, color: 'green' }}>${this.state.remaining}</Text>
           </View>
         </View>
@@ -123,8 +171,39 @@ export default class App extends Component {
               onPress={(moneyIn) => { this.setState({ moneyIn: moneyIn }) }}
             />
           </View>
+          <View style={styles.transactionValueContainer}>
+            <TextInput
+              ref={input => { this.amountInput = input }}
+              placeholder="amount"
+              keyboardType='number-pad'
+              onChangeText={(amount) => this.setState({ amount })}
+            />
+            <TextInput placeholder="description"
+              ref={input => { this.descInput = input }}
+              onChangeText={(desc) => this.setState({ desc })}
+            />
+            <Picker
+              selectedValue={this.state.dayOfWeek}
+              onValueChange={(dayOfWeek, index) => this.setState({ dayOfWeek: dayOfWeek })}>
+              <Picker.Item label="Monday" value="monday" />
+              <Picker.Item label="Tuesday" value="tuesday" />
+              <Picker.Item label="Wednesday" value="wednesday" />
+              <Picker.Item label="Thursday" value="thursday" />
+              <Picker.Item label="Friday" value="friday" />
+              <Picker.Item label="Saturday" value="saturday" />
+              <Picker.Item label="Sunday" value="sunday" />
+            </Picker>
+
+            <Button onPress={this._submitTransaction} title="Save Transaction" />
+          </View>
         </View>
       </View>
+    )
+  }
+
+  showAlert = (msg) => {
+    Alert.alert(
+      msg
     )
   }
 
@@ -147,16 +226,12 @@ const styles = StyleSheet.create({
   mainContainer: {
     width: '90%',
     alignSelf: "center",
-    marginTop: 10,
-    fontSize: 20
-  },
-  topRight: {
-
+    marginTop: '5%',
   },
   header: {
     fontSize: 36,
     textAlign: "center",
-    margin: 15
+    margin: '5%'
   },
   moneyValues: {
     flexDirection: "row",
@@ -170,6 +245,10 @@ const styles = StyleSheet.create({
   },
   radioContainer: {
     alignSelf: "center",
-
-  }
+    margin: '5%'
+  },
+  transactionValueContainer: {
+    width: '70%',
+    alignSelf: 'center'
+  },
 });
