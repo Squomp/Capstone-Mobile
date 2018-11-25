@@ -1,9 +1,15 @@
 import React, { Component } from 'react';
-import { Alert, Platform, Picker, Button, Text, StyleSheet, View, TextInput } from 'react-native';
+import {
+  Alert, Platform, Picker, Button,
+  Text, StyleSheet, View, TextInput,
+} from 'react-native';
+import KeyboardAwareScrollView from 'react-native-keyboard-aware-scroll-view';
 import axios from 'axios';
 import RadioForm, { RadioButton, RadioButtonInput, RadioButtonLabel } from 'react-native-simple-radio-button';
+import DatePicker from 'react-native-datepicker';
+import moment from 'moment';
 
-const url = 'http://0477be31.ngrok.io';
+const url = 'http://9343fcd4.ngrok.io';
 
 export default class App extends Component {
 
@@ -17,11 +23,14 @@ export default class App extends Component {
 
       spent: 0,
       remaining: 0,
+      startDate: moment(),
+      endDate: moment(),
 
       moneyIn: 0,
       amount: 0,
       desc: '',
       dayOfWeek: 'monday',
+      date: moment().format('YYYY-MM-DD')
     }
     this.Login = this.Login.bind(this);
     this.Main = this.Main.bind(this);
@@ -112,7 +121,9 @@ export default class App extends Component {
       .then((response) => {
         this.setState({
           spent: response.data.data.period.spent,
-          remaining: response.data.data.period.remaining
+          remaining: response.data.data.period.remaining,
+          startDate: response.data.data.period.start_date,
+          endDate: response.data.data.period.end_date,
         })
       })
       .catch((error) => {
@@ -121,11 +132,12 @@ export default class App extends Component {
   }
 
   _submitTransaction() {
+    this.showAlert(this.state.date);
     axios.post(url + '/api/finance/log', {
       amount: this.state.amount,
       description: this.state.desc,
       dayOfWeek: this.state.dayOfWeek,
-      date: new Date(),
+      date: this.state.date,
       isIncome: this.state.moneyIn
     })
       .then((response) => {
@@ -144,12 +156,22 @@ export default class App extends Component {
       { label: 'Money Out   ', value: 'false' },
       { label: 'Money In', value: 'true' }
     ];
+    const today = moment().format('MM/DD');
+    const start = moment(this.state.startDate).format('MM/DD');
+    const end = moment(this.state.endDate).format('MM/DD');
     return (
-      <View style={styles.mainContainer}>
-        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
-            <Button onPress={this._logout} title="Log Out" />
+      <View style={styles.mainContainer}>      
+      {/* <KeyboardAwareScrollView
+        resetScrollToCoords={{ x: 0, y: 0 }}
+        contentContainerStyle={styles.container}
+        scrollEnabled={false}
+      > */}
+        <View style={{ width: 100, flex: 1, flexDirection: 'row', alignItems: 'center' }}>
+          <Button onPress={this._logout} title="Log Out" />
         </View>
         <Text style={styles.header}>Welcome, {this.state.username}!</Text>
+        <Text style={styles.secondaryHeader}>{start} - {end}</Text>
+        <Text style={styles.secondaryHeader}>{today}</Text>
         <View style={styles.moneyValues}>
           <View style={styles.moneyContainer}>
             <Text >Spent</Text>
@@ -182,21 +204,32 @@ export default class App extends Component {
               ref={input => { this.descInput = input }}
               onChangeText={(desc) => this.setState({ desc })}
             />
-            <Picker
-              selectedValue={this.state.dayOfWeek}
-              onValueChange={(dayOfWeek, index) => this.setState({ dayOfWeek: dayOfWeek })}>
-              <Picker.Item label="Monday" value="monday" />
-              <Picker.Item label="Tuesday" value="tuesday" />
-              <Picker.Item label="Wednesday" value="wednesday" />
-              <Picker.Item label="Thursday" value="thursday" />
-              <Picker.Item label="Friday" value="friday" />
-              <Picker.Item label="Saturday" value="saturday" />
-              <Picker.Item label="Sunday" value="sunday" />
-            </Picker>
-
+            <DatePicker
+              style={{ width: 200 }}
+              date={this.state.date}
+              mode="date"
+              placeholder="select date"
+              format="YYYY-MM-DD"
+              confirmBtnText="Confirm"
+              cancelBtnText="Cancel"
+              customStyles={{
+                dateIcon: {
+                  position: 'absolute',
+                  left: 0,
+                  top: 4,
+                  marginLeft: 0,
+                },
+                dateInput: {
+                  marginLeft: 36,
+                }
+              }}
+              onDateChange={(date) => { this.setState({ date: date }) }}
+            />
+            <View style={{ height: 20 }} />
             <Button onPress={this._submitTransaction} title="Save Transaction" />
           </View>
         </View>
+      {/* </KeyboardAwareScrollView> */}
       </View>
     )
   }
@@ -233,10 +266,14 @@ const styles = StyleSheet.create({
     textAlign: "center",
     margin: '5%'
   },
+  secondaryHeader: {
+    fontSize: 28,
+    textAlign: "center",
+    margin: '3%'
+  },
   moneyValues: {
     flexDirection: "row",
     justifyContent: "center",
-    margin: '10%'
   },
   moneyContainer: {
     width: '50%',
