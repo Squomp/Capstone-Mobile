@@ -3,13 +3,12 @@ import {
   Alert, Platform, Picker, Button,
   Text, StyleSheet, View, TextInput,
 } from 'react-native';
-import KeyboardAwareScrollView from 'react-native-keyboard-aware-scroll-view';
 import axios from 'axios';
 import RadioForm, { RadioButton, RadioButtonInput, RadioButtonLabel } from 'react-native-simple-radio-button';
 import DatePicker from 'react-native-datepicker';
 import moment from 'moment';
 
-const url = 'http://9343fcd4.ngrok.io';
+const url = 'http://75f525a9.ngrok.io';
 
 export default class App extends Component {
 
@@ -50,6 +49,7 @@ export default class App extends Component {
           username: response.data.data.user.username,
           password: '',
         })
+        this.getPeriodData();
       })
       .catch((error) => {
         this.showAlert('Failed to login')
@@ -156,7 +156,7 @@ export default class App extends Component {
       { label: 'Money Out   ', value: 'false' },
       { label: 'Money In', value: 'true' }
     ];
-    const today = moment().format('MM/DD');
+    const today = moment('2018-12-05').format('MM/DD');
     const start = moment(this.state.startDate).format('MM/DD');
     const end = moment(this.state.endDate).format('MM/DD');
     return (
@@ -206,7 +206,7 @@ export default class App extends Component {
             />
             <DatePicker
               style={{ width: 200 }}
-              date={this.state.date}
+              date={moment('2018-12-05')}
               mode="date"
               placeholder="select date"
               format="YYYY-MM-DD"
